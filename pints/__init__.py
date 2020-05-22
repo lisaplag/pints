@@ -236,6 +236,18 @@ from ._nested._ellipsoid import NestedEllipsoidSampler
 #
 from . import noise
 
+
+#
+#  Emulators
+#
+from ._emulators import (
+    Emulator,
+    NNEmulator,
+)
+# base classes first
+from ._emulators._ann import SingleLayerNN, MultiLayerNN
+from ._emulators._utils import generate_grid, predict_grid
+
 #
 # Remove any imported modules, so we don't expose them as part of pints
 #
