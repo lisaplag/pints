@@ -122,37 +122,31 @@ class MultiLayerNN(pints.NNEmulator):
             y = self._output_scaler.inverse_transform(y)
         return y
 
-    def set_parameters(self, neurons=64, hidden_activation='relu', activation='sigmoid', 
+    def set_parameters(self, layers=3, neurons=64, hidden_activation='relu', activation='sigmoid', 
                        learning_rate=0.001, loss='mse', metrics=['mae']):
         """ Provide parameters to compile the model. """
+        # Input layer
         self._model.add(Dense(neurons,
                                 activation=hidden_activation,
                                 input_dim=2,
                                 kernel_initializer='he_uniform'
                                 #kernel_regularizer=tf.keras.regularizers.l2(0.01),)
         ))
-        
-        self._model.add(Dense(2*neurons,
-            activation=tf.nn.leaky_relu,
-            kernel_initializer='he_uniform'                  
-            #kernel_regularizer=tf.keras.regularizers.l2(0.01)
-        ))
-        self._model.add(Dense(3*neurons,
-            activation=tf.nn.leaky_relu,
-            kernel_initializer='he_uniform'
-            #kernel_regularizer=tf.keras.regularizers.l2(0.01)
-        ))
-        self._model.add(Dense(2*neurons,
-            activation=tf.nn.leaky_relu,
-            kernel_initializer='he_uniform'                  
-            #kernel_regularizer=tf.keras.regularizers.l2(0.01)
-        ))
-        self._model.add(Dense(neurons,
-            activation=tf.nn.leaky_relu,
-            kernel_initializer='he_uniform'                  
-            #kernel_regularizer=tf.keras.regularizers.l2(0.01)
-        ))
-        self._model.add(Dense(1, activation=activation))  # output layer
+        # Hidden layers
+        for n in range(2, layers+1):    
+            self._model.add(Dense(n*neurons,
+                activation=tf.nn.leaky_relu,
+                kernel_initializer='he_uniform'                  
+                #kernel_regularizer=tf.keras.regularizers.l2(0.01)
+            ))
+        for n in range(layers, 1, -1):    
+            self._model.add(Dense(n*neurons,
+                activation=tf.nn.leaky_relu,
+                kernel_initializer='he_uniform'                  
+                #kernel_regularizer=tf.keras.regularizers.l2(0.01)
+            ))
+        # Output layer
+        self._model.add(Dense(1, activation=activation))
         
         opt = keras.optimizers.SGD(learning_rate, momentum=0.9)
         #opt = keras.optimizers.Adam(learning_rate)

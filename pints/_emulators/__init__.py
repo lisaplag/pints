@@ -13,7 +13,7 @@ import numpy as np
 import copy
 
 
-class Emulator(pints.Loggable, pints.TunableMethod): #pints.LogPDF
+class Emulator(pints.Loggable, pints.TunableMethod, pints.LogPDF): #pints.LogPDF
     """
     Abstract base class for likelihood function emulators.
     All emulators implement the :class:`pints.Loggable` and
