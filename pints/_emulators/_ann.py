@@ -13,7 +13,8 @@ import tensorflow as tf
 import keras
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
-from keras.callbacks import ReduceLROnPlateau
+from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping
+from keras.utils import HDF5Matrix
 
 
 class SingleLayerNN(pints.NNEmulator):
@@ -163,13 +164,14 @@ class MultiLayerNN(pints.NNEmulator):
         if self._output_scaler and y_val is not None:
             y_val = np.array(y_val).reshape((len(y_val),1))
             y_val = self._output_scaler.transform(y_val)  
- 
-        rlrop = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=20)
+            
+        early_stopper = EarlyStopping(monitor='val_loss',min_delta=0,patience=50,verbose=0,mode='auto')
+        plateau_reducer = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=50)
         self._history = self._model.fit(self._X,
                                         self._y,
                                         epochs=epochs,
                                         batch_size=batch_size,
-                                        callbacks=[rlrop],
+                                        callbacks=[early_stopper],
                                         shuffle=True,
                                         validation_data=(X_val, y_val),
                                         verbose=verbose
