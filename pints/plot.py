@@ -171,13 +171,17 @@ def function_between_points(f, point_1, point_2, padding=0.25, evaluations=20):
     return fig, axes
 
 
-def histogram(samples, kde=False, ref_parameters=None, n_percentiles=None):
+def histogram(
+        samples,
+        kde=False,
+        n_percentiles=None,
+        parameter_names=None,
+        ref_parameters=None,
+        sample_names=None):
     """
     Takes one or more markov chains or lists of samples as input and creates
     and returns a plot showing histograms for each chain or list of samples.
-
     Returns a ``matplotlib`` figure object and axes handle.
-
     Parameters
     ----------
     samples
@@ -188,22 +192,23 @@ def histogram(samples, kde=False, ref_parameters=None, n_percentiles=None):
     kde
         Set to ``True`` to include kernel-density estimation for the
         histograms.
-    ref_parameters
-        A set of parameters for reference in the plot. For example, if true
-        values of parameters are known, they can be passed in for plotting.
     n_percentiles
         Shows only the middle n-th percentiles of the distribution.
         Default shows all samples in ``samples``.
+    parameter_names
+        A list of parameter names, which will be displayed on the x-axis of the
+        histogram subplots. If no names are provided, the parameters are
+        enumerated.
+    ref_parameters
+        A set of parameters for reference in the plot. For example, if true
+        values of parameters are known, they can be passed in for plotting.
     """
+    import numpy as np
     import matplotlib
     import matplotlib.pyplot as plt
-    import numpy as np
-    import scipy.stats as stats
-    from distutils.version import LooseVersion
 
     # Check matplotlib version
-    use_old_matplotlib = LooseVersion(matplotlib.__version__) \
-        < LooseVersion("2.2")
+    use_old_matplotlib = False
 
     # If we switch to Python3 exclusively, bins and alpha can be keyword-only
     # arguments
@@ -211,6 +216,14 @@ def histogram(samples, kde=False, ref_parameters=None, n_percentiles=None):
     alpha = 0.5
     n_list = len(samples)
     _, n_param = samples[0].shape
+
+    # Check parameter names
+    if parameter_names is None:
+        parameter_names = ['Parameter' + str(i + 1) for i in range(n_param)]
+    elif len(parameter_names) != n_param:
+        raise ValueError(
+            'Length of `parameter_names` must be same as number of'
+            ' parameters.')
 
     # Check number of parameters
     for samples_j in samples:
@@ -236,7 +249,7 @@ def histogram(samples, kde=False, ref_parameters=None, n_percentiles=None):
     for i in range(n_param):
         for j_list, samples_j in enumerate(samples):
             # Add histogram subplot
-            axes[i, 0].set_xlabel('Parameter ' + str(i + 1))
+            axes[i, 0].set_xlabel(parameter_names[i])
             axes[i, 0].set_ylabel('Frequency')
             if n_percentiles is None:
                 xmin = np.min(samples_j[:, i])
@@ -247,14 +260,18 @@ def histogram(samples, kde=False, ref_parameters=None, n_percentiles=None):
                 xmax = np.percentile(samples_j[:, i],
                                      50 + n_percentiles / 2.)
             xbins = np.linspace(xmin, xmax, bins)
+            if sample_names is not None:
+                label=sample_names[j_list]
+            else:
+                label='Samples ' + str(1 + j_list)
             if use_old_matplotlib:  # pragma: no cover
                 axes[i, 0].hist(
                     samples_j[:, i], bins=xbins, alpha=alpha, normed=True,
-                    label='Samples ' + str(1 + j_list))
+                    label=label)
             else:
                 axes[i, 0].hist(
                     samples_j[:, i], bins=xbins, alpha=alpha, density=True,
-                    label='Samples ' + str(1 + j_list))
+                    label=label)
 
             # Add kde plot
             if kde:
@@ -790,3 +807,60 @@ def pairwise(samples,
             axes[i, 0].set_ylabel('Parameter %d' % (i + 1))
 
     return fig, axes
+
+
+def surface(
+        x_grid, y_grid, z_grid,
+        cmap="Blues", angle=(25, 300), alpha=1.,
+        fontsize=14, labelpad=10,
+        title="", x_label="", y_label="", z_label="log_likelihood"):
+    """
+    Creates 3d contour plot given a grid for each axis.
+    Arguments:
+    ``x_grid``
+        An NxN grid of values.
+    ``y_grid``
+        An NxN grid of values.
+    ``z_grid``
+        An NxN grid of values. z_grid determines colour.
+    ``cmap``
+        (Optional) Colour map used in the plot
+    ``angle``
+        (Optional) tuple specifying the viewing angle of the graph
+    ``alpha``
+        (Optional) alpha parameter of the surface
+    ``fill``
+        (Optional) Used to specify whether or not contour plot should be filled
+        Default False.
+    ``fontsize``
+        (Optional) the fontsize used for labels
+    ``labelpad``
+        (Optional) distance of axis labels from the labels
+    ``x_label``
+        (Optional) The label of the x-axis
+    ``y_label``
+        (Optional) The label of the y-axis
+    ``z_label``
+        (Optional) The label of the z-axis
+    Returns a ``matplotlib`` figure object and axes handle.
+    """
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D 
+    ax = plt.axes(projection='3d')
+    # Data for a three-dimensional line
+    ax.plot_surface(x_grid, y_grid, z_grid, cmap=cmap, alpha=alpha)
+    ax.view_init(*angle)
+
+    fontsize = fontsize
+    labelpad = labelpad
+
+    if title:
+        plt.title(title, fontsize=fontsize)
+    if x_label:
+        ax.set_xlabel(x_label, fontsize=fontsize, labelpad=labelpad)
+    if y_label:
+        ax.set_ylabel(y_label, fontsize=fontsize, labelpad=labelpad)
+    if z_label:
+        ax.set_zlabel(z_label, fontsize=fontsize, labelpad=labelpad)
+
+    return ax

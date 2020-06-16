@@ -37,7 +37,7 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
            https://doi.org/10.1063/1.1699114
     """
 
-    def __init__(self, emulator, x0, sigma0=None):
+    def __init__(self, f, x0, sigma0=None):
         super(EmulatedMetropolisMCMC, self).__init__(x0, sigma0)
 
         # Set initial state
@@ -48,8 +48,8 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
         self._current_log_pdf = None
         self._proposed = None
         
-        # Set emulator
-        self._emulator = emulator
+        # Set posterior
+        self._f = f
 
     def acceptance_rate(self):
         """
@@ -143,12 +143,33 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
         # Check if the proposed point can be accepted using the emulator
         accepted = 0
         if np.isfinite(fx):
-            u = np.log(np.random.uniform(0, 1))
-            if u < fx - self._current_log_pdf:
-                accepted = 1
-                self._current = self._proposed
-                self._current_log_pdf = fx
-
+            # Step 1 - Initial reject step:
+            u1 = np.log(np.random.uniform(0, 1))
+            alpha1 = fx - self._current_log_pdf
+            #u = np.log(np.random.uniform(0, 1))
+            if alpha1 > u1:
+                # Step 2 - Metropolis-Hastings step:
+                u2 = np.log(np.random.uniform(0, 1))
+                alpha2 = self._current_log_pdf - fx
+                if ((self._f(self._proposed) * alpha2) / (self._f(self._current) * alpha1)) > u2:
+                    accepted = 1
+                    self._current = self._proposed
+                    self._current_log_pdf = fx      
+            
+            # Step 1 - Initial reject step:
+            #u1 = np.log(np.random.uniform(0, 1))
+            #alpha1 = min(1, fx / self._current_log_pdf)
+            #u = np.log(np.random.uniform(0, 1))
+            #if alpha1 > u1:
+                # Step 2 - Metropolis-Hastings step:
+                #u2 = np.log(np.random.uniform(0, 1))
+                #alpha2 = min(1, self._current_log_pdf / fx)
+                #if u < fx - self._current_log_pdf:
+                #if ((self._f(self._proposed) * alpha2) / (self._f(self._current) * alpha1)) > u2:
+                    #accepted = 1
+                    #self._current = self._proposed
+                    #self._current_log_pdf = fx          
+                                            
         # Clear proposal
         self._proposed = None
 

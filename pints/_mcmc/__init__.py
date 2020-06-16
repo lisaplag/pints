@@ -295,7 +295,7 @@ class MCMCController(object):
         :class:`HaarioBardenetACMC` is used.
     """
 
-    def __init__(self, log_pdf, chains, x0, sigma0=None, method=None):
+    def __init__(self, log_pdf, chains, x0, sigma0=None, method=None, f=None):
 
         # Store function
         if not isinstance(log_pdf, pints.LogPDF):
@@ -341,7 +341,10 @@ class MCMCController(object):
             # Using n individual samplers (Note that it is possible to have
             # _single_chain=True and _n_samplers=1)
             self._n_samplers = self._n_chains
-            self._samplers = [method(x, sigma0) for x in x0]
+            if f is not None:
+                self._samplers = [method(f, x, sigma0) for x in x0]
+            else:
+                self._samplers = [method(x, sigma0) for x in x0]
         else:
             # Using a single sampler that samples multiple chains
             self._n_samplers = 1
