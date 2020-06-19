@@ -11,6 +11,7 @@ import pints
 import numpy as np
 import tensorflow as tf
 import keras
+import copy
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping
@@ -112,9 +113,9 @@ class MultiLayerNN(pints.NNEmulator):
         self._model = Sequential()
 
 
-    def __call__(self, x):
+    def __call__(self, xx):
         """ Additional **kwargs can be provided to Keras's predict method. """
-        x = np.array(x).reshape((1, self.n_parameters()))
+        x = np.array(copy.deepcopy(xx)).reshape((1, self.n_parameters()))
         if self._input_scaler:
             x = self._input_scaler.transform(x)
 

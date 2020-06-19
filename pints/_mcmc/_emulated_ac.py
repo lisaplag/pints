@@ -11,7 +11,7 @@ import pints
 import numpy as np
 
 
-class EmulatedMC(pints.SingleChainMCMC):
+class EmulatedACMCMC(pints.SingleChainMCMC):
     """
     Base class for single chain MCMC methods that globally adapt a proposal
     covariance matrix when running, in order to control the acceptance rate.
@@ -28,8 +28,8 @@ class EmulatedMC(pints.SingleChainMCMC):
     Extends :class:`SingleChainMCMC`.
     """
 
-    def __init__(self, x0, sigma0=None):
-        super(AdaptiveCovarianceMC, self).__init__(x0, sigma0)
+    def __init__(self, f, x0, sigma0=None):
+        super(EmulatedACMCMC, self).__init__(x0, sigma0)
 
         # Current running status, used to initialise on first run and check
         # that certain methods are only called before or during run.
@@ -67,6 +67,25 @@ class EmulatedMC(pints.SingleChainMCMC):
 
         # Initial decay rate in adaptation
         self._gamma = 1
+        
+        # Set posterior
+        self._f = f
+        # Initial log lambda is zero
+        self._log_lambda = 0
+
+    def _adapt_internal(self, accepted, log_ratio):
+        """ See :meth:`pints.AdaptiveCovarianceMC.tell()`. """
+        p = 1 if accepted else 0
+        self._log_lambda += self._gamma * (p - self._target_acceptance)
+
+    def _generate_proposal(self):
+        """ See :meth:`AdaptiveCovarianceMC._generate_proposal()`. """
+        return np.random.multivariate_normal(
+            self._current, self._sigma * np.exp(self._log_lambda))
+
+    def name(self):
+        """ See :meth:`pints.MCMCSampler.name()`. """
+        return 'Emulated adaptive covariance MCMC'
 
     def acceptance_rate(self):
         """
@@ -258,26 +277,35 @@ class EmulatedMC(pints.SingleChainMCMC):
 
         # Calculate log of the ratio of proposed and current log pdf
         # Can be used in adaptation, regardless of acceptance
-        log_ratio = fx - self._current_log_pdf
+        #log_ratio = fx - self._current_log_pdf
+        
+        #print(self._proposed)
+        #print(fx)
 
-        # Accept or reject the point
-        accepted = False
+        # Check if the proposed point can be accepted using the emulator
+        accepted = 0
         if np.isfinite(fx):
-            u = np.log(np.random.uniform(0, 1))
-            if u < log_ratio:
-                accepted = True
-                self._acceptance_count += 1
-
-                # Update current point
-                self._current = self._proposed
-                self._current_log_pdf = fx
+            # Step 1 - Initial reject step:
+            u1 = np.log(np.random.uniform(0, 1))
+            alpha1 = fx - self._current_log_pdf
+            #u = np.log(np.random.uniform(0, 1))
+            if alpha1 > u1:
+                # Step 2 - Metropolis-Hastings step:
+                u2 = np.log(np.random.uniform(0, 1))
+                alpha2 = self._current_log_pdf - fx
+                if ((self._f(self._proposed) * alpha2) / (self._f(self._current) * alpha1)) > u2:
+                #if ((self._f(self._proposed) + alpha2) - (self._f(self._current) + alpha1)) > u2:
+                    accepted = 1
+                    self._current = self._proposed
+                    self._current_log_pdf = fx    
 
         # Calculate acceptance rate
         self._acceptance_rate = self._acceptance_count / self._iterations
 
         # Clear proposal
         self._proposed = None
-
+        #print("\n")
+              
         # Adapt covariance matrix
         if self._adaptive:
 
