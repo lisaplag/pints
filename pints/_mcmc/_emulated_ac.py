@@ -93,19 +93,6 @@ class EmulatedACMCMC(pints.SingleChainMCMC):
         """
         return self._acceptance_rate
 
-    def _adapt_internal(self, accepted, log_ratio):
-        """
-        Called at the end of every ``tell()`` to adapt any internal parameters.
-
-        Parameters
-        ----------
-        accepted : boolean
-            Whether or not the proposal was accepted
-        log_ratio : float
-            The log of the ratio proposed log pdf / current log pdf
-        """
-        pass
-
     def _adapt_mu(self):
         """
         Called at the end of every ``tell()`` to adapt the current running mean
@@ -157,12 +144,6 @@ class EmulatedACMCMC(pints.SingleChainMCMC):
         ergodicity.
         """
         return self._eta
-
-    def _generate_proposal(self):
-        """
-        Should generate and return a proposed point.
-        """
-        raise NotImplementedError
 
     def in_initial_phase(self):
         """ See :meth:`pints.MCMCSampler.in_initial_phase()`. """
@@ -277,13 +258,13 @@ class EmulatedACMCMC(pints.SingleChainMCMC):
 
         # Calculate log of the ratio of proposed and current log pdf
         # Can be used in adaptation, regardless of acceptance
-        #log_ratio = fx - self._current_log_pdf
+        log_ratio = fx - self._current_log_pdf
         
         #print(self._proposed)
         #print(fx)
 
         # Check if the proposed point can be accepted using the emulator
-        accepted = 0
+        accepted = False
         if np.isfinite(fx):
             # Step 1 - Initial reject step:
             u1 = np.log(np.random.uniform(0, 1))
@@ -295,9 +276,13 @@ class EmulatedACMCMC(pints.SingleChainMCMC):
                 alpha2 = self._current_log_pdf - fx
                 if ((self._f(self._proposed) * alpha2) / (self._f(self._current) * alpha1)) > u2:
                 #if ((self._f(self._proposed) + alpha2) - (self._f(self._current) + alpha1)) > u2:
-                    accepted = 1
+                    accepted = True
+                    #print("accepted")
+                    self._acceptance_count += 1
+
+                    # Update current point
                     self._current = self._proposed
-                    self._current_log_pdf = fx    
+                    self._current_log_pdf = fx   
 
         # Calculate acceptance rate
         self._acceptance_rate = self._acceptance_count / self._iterations
