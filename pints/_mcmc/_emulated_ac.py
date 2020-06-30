@@ -274,8 +274,8 @@ class EmulatedACMCMC(pints.SingleChainMCMC):
                 # Step 2 - Metropolis-Hastings step:
                 u2 = np.log(np.random.uniform(0, 1))
                 alpha2 = self._current_log_pdf - fx
-                if ((self._f(self._proposed) * alpha2) / (self._f(self._current) * alpha1)) > u2:
-                #if ((self._f(self._proposed) + alpha2) - (self._f(self._current) + alpha1)) > u2:
+                #if ((self._f(self._proposed) * alpha2) / (self._f(self._current) * alpha1)) > u2:
+                if ((self._f(self._proposed) + alpha2) - (self._f(self._current) + alpha1)) > u2:
                     accepted = True
                     #print("accepted")
                     self._acceptance_count += 1

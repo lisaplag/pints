@@ -145,31 +145,15 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
         if np.isfinite(fx):
             # Step 1 - Initial reject step:
             u1 = np.log(np.random.uniform(0, 1))
-            alpha1 = fx - self._current_log_pdf
-            #u = np.log(np.random.uniform(0, 1))
+            alpha1 = min(0, fx - self._current_log_pdf)
             if alpha1 > u1:
                 # Step 2 - Metropolis-Hastings step:
                 u2 = np.log(np.random.uniform(0, 1))
-                alpha2 = self._current_log_pdf - fx
-                if ((self._f(self._proposed) * alpha2) / (self._f(self._current) * alpha1)) > u2:
-                #if ((self._f(self._proposed) + alpha2) - (self._f(self._current) + alpha1)) > u2:
+                alpha2 = min(0, self._current_log_pdf - fx)
+                if ((self._f(self._proposed) + alpha2) - (self._f(self._current) + alpha1)) > u2:
                     accepted = 1
                     self._current = self._proposed
-                    self._current_log_pdf = fx      
-            
-            # Step 1 - Initial reject step:
-            #u1 = np.log(np.random.uniform(0, 1))
-            #alpha1 = min(1, fx / self._current_log_pdf)
-            #u = np.log(np.random.uniform(0, 1))
-            #if alpha1 > u1:
-                # Step 2 - Metropolis-Hastings step:
-                #u2 = np.log(np.random.uniform(0, 1))
-                #alpha2 = min(1, self._current_log_pdf / fx)
-                #if u < fx - self._current_log_pdf:
-                #if ((self._f(self._proposed) * alpha2) / (self._f(self._current) * alpha1)) > u2:
-                    #accepted = 1
-                    #self._current = self._proposed
-                    #self._current_log_pdf = fx          
+                    self._current_log_pdf = fx             
                                             
         # Clear proposal
         self._proposed = None

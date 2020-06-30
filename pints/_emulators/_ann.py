@@ -99,8 +99,6 @@ class NeuralNetwork(pints.ProblemLogLikelihood):
         return self._np
     
     
-    
-    
 class RescaledMetrics(keras.callbacks.Callback):
     def __init__(self, output_scaler):
         self._output_scaler = output_scaler
@@ -244,8 +242,10 @@ class MultiLayerNN(NeuralNetwork):
     
 
     def set_parameters(self, layers=6, neurons=64, hidden_activation='relu', activation='sigmoid', 
-                       learning_rate=0.001, regularize=True, loss='mse', metrics=['mae']):
+                       learning_rate=0.001, 
+                       regularize=True, loss='mse', metrics=['mae']):
         """ Provide parameters to compile the model. """
+        initializer = tf.keras.initializers.he_uniform(seed=1234)
         k = int(layers/2)
         if regularize:
             regularizer=tf.keras.regularizers.l2(0.01)
@@ -253,22 +253,22 @@ class MultiLayerNN(NeuralNetwork):
             regularizer=None
         # Input layer    
         self._model.add(Dense(neurons,
-                                activation=hidden_activation,
+                                activation=tf.keras.layers.LeakyReLU(alpha=0.1),
                                 input_dim=2,
-                                kernel_initializer='he_uniform',
+                                kernel_initializer=initializer,
                                 kernel_regularizer=regularizer
         ))
         # Hidden layers
         for n in range(1, k):    
             self._model.add(Dense(neurons*(2**n),
-                activation=tf.nn.leaky_relu,
-                kernel_initializer='he_uniform',                  
+                activation=tf.keras.layers.LeakyReLU(alpha=0.1),
+                kernel_initializer=initializer,                  
                 kernel_regularizer=regularizer
             ))
         for n in range(k-2, -1, -1):    
             self._model.add(Dense(neurons*(2**n),
-                activation=tf.nn.leaky_relu,
-                kernel_initializer='he_uniform',                  
+                activation=tf.keras.layers.LeakyReLU(alpha=0.1),
+                kernel_initializer=initializer,                  
                 kernel_regularizer=regularizer
             ))
         # Output layer
@@ -277,7 +277,7 @@ class MultiLayerNN(NeuralNetwork):
         #opt = keras.optimizers.SGD(learning_rate, momentum=0.9)
         opt = keras.optimizers.Adam(learning_rate)
         self._model.compile(
-            loss=loss,
+            loss="mae",
             optimizer=opt,
             metrics=metrics
         )
@@ -298,8 +298,8 @@ class MultiLayerNN(NeuralNetwork):
                                                          save_weights_only=True,
                                                          verbose=0)
         # Create a callback for early stopping if no progress is made
-        early_stopper = EarlyStopping(monitor='val_loss',min_delta=0,patience=5,verbose=0,mode='auto')
-        plateau_reducer = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=50)
+        early_stopper = EarlyStopping(monitor='val_mean_absolute_error',min_delta=0,patience=5,verbose=0,mode='auto')
+        plateau_reducer = ReduceLROnPlateau(monitor='val_mean_absolute_error', factor=0.3, patience=50)
         
         self._model.X_train = self._X
         self._model.y_train = self._y
