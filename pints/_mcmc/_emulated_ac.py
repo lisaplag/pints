@@ -15,16 +15,13 @@ class EmulatedACMCMC(pints.SingleChainMCMC):
     """
     Base class for single chain MCMC methods that globally adapt a proposal
     covariance matrix when running, in order to control the acceptance rate.
-
     Each subclass should provide a method :meth:`_generate_proposal()` that
     will be called by :meth:`ask()`.
-
     Adaptation is implemented with three methods, which are called in
     sequence, at the end of every ``tell()``: :meth:`_adapt_mu()`,
     :meth:`_adapt_sigma()`, and :meth:`_adapt_internal()`.
     A basic implementation is provided for each, which extending methods can
     choose to override.
-
     Extends :class:`SingleChainMCMC`.
     """
 
@@ -104,7 +101,6 @@ class EmulatedACMCMC(pints.SingleChainMCMC):
         """
         Called at the end of every ``tell()`` to adapt the covariance matrix
         used to generate proposals.
-
         Parameters
         ----------
         log_ratio
@@ -201,7 +197,6 @@ class EmulatedACMCMC(pints.SingleChainMCMC):
     def set_hyper_parameters(self, x):
         """
         The hyper-parameter vector is ``[eta]``.
-
         See :meth:`TunableMethod.set_hyper_parameters()`.
         """
         self.set_eta(x[0])
@@ -309,4 +304,3 @@ class EmulatedACMCMC(pints.SingleChainMCMC):
 
         # Return current sample
         return self._current
-
