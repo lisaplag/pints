@@ -56,6 +56,12 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
         Returns the current (measured) acceptance rate.
         """
         return self._acceptance
+    
+    def acceptance_rates(self):
+        """
+        Returns the current (measured) acceptance rates in all steps.
+        """
+        return self._acceptance, self._acceptance1, self._acceptance2
 
     def ask(self):
         """ See :meth:`SingleChainMCMC.ask()`. """
@@ -96,6 +102,9 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
         # Acceptance rate monitoring
         self._iterations = 0
         self._acceptance = 0
+        self._acceptance1 = 0
+        self._acceptance2 = 0
+        self._acceptance3 = 0
 
         # Update sampler state
         self._running = True
@@ -130,6 +139,7 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
             # Accept
             self._current = self._proposed
             self._current_log_pdf = fx
+            #self._current_log_pdf = self._f(self._proposed)
 
             # Increase iteration count
             self._iterations += 1
@@ -141,29 +151,49 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
             return self._current
 
         # Check if the proposed point can be accepted using the emulator
-        accepted = 0
+        accepted1 = 0
+        accepted2 = 0
         if np.isfinite(fx):
             # Step 1 - Initial reject step:
             u1 = np.log(np.random.uniform(0, 1))
             alpha1 = min(0, fx - self._current_log_pdf)
             if alpha1 > u1:
+                accepted1 = 1
                 # Step 2 - Metropolis-Hastings step:
                 u2 = np.log(np.random.uniform(0, 1))
                 alpha2 = min(0, self._current_log_pdf - fx)
-                if ((self._f(self._proposed) + alpha2) - (self._f(self._current) + alpha1)) > u2:
-                    accepted = 1
+                #print(self._f(self._current) == self._current_log_pdf) # always True
+                #print((true_fx + alpha2) - (self._current_log_pdf + alpha1))
+                if ((self._f(self._proposed) + alpha2) - (self._f(self._current) + alpha1)) > u1:
+                    accepted2 = 1
                     self._current = self._proposed
-                    self._current_log_pdf = fx             
+                    self._current_log_pdf = fx 
+                    #self._current_log_pdf = true_fx            
                                             
         # Clear proposal
         self._proposed = None
 
-        # Update acceptance rate (only used for output!)
-        self._acceptance = ((self._iterations * self._acceptance + accepted) /
+        # Update acceptance rates (only used for output!)            
+        # Overall acceptance rate
+        self._acceptance = ((self._iterations * self._acceptance + accepted2) /
                             (self._iterations + 1))
-
+        # First stage acceptance rate
+        self._acceptance1 = ((self._iterations * self._acceptance1 + accepted1) /
+                            (self._iterations + 1))
+        # Second stage acceptance rate
+        if self._iterations * self._acceptance1 > 0:
+            self._acceptance2 = ((self._iterations * self._acceptance) /
+                                (self._iterations * self._acceptance1))
+        #if accepted1 == 1:
+            # Update second stage acceptance rate    
+            #self._acceptance2 = ((self._iterations * self._acceptance) /
+                                #(self._iterations * self._acceptance1))
+        
         # Increase iteration count
         self._iterations += 1
+        
+        #if self._iterations == 30000:
+            #print("Acceptance1:", self._acceptance1, "Acceptance2:", self._acceptance2)
 
         # Return new point for chain
         return self._current

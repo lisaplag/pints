@@ -247,6 +247,7 @@ def histogram(
 
     # Plot first samples
     for i in range(n_param):
+        ymin_all, ymax_all = np.inf, -np.inf
         for j_list, samples_j in enumerate(samples):
             # Add histogram subplot
             axes[i, 0].set_xlabel(parameter_names[i])
@@ -264,15 +265,8 @@ def histogram(
                 label=sample_names[j_list]
             else:
                 label='Samples ' + str(1 + j_list)
-            if use_old_matplotlib:  # pragma: no cover
-                axes[i, 0].hist(
-                    samples_j[:, i], bins=xbins, alpha=alpha, normed=True,
-                    label=label)
-            else:
-                axes[i, 0].hist(
-                    samples_j[:, i], bins=xbins, alpha=alpha, density=True,
-                    label=label)
-
+            axes[i, 0].hist(samples_j[:, i], bins=xbins, alpha=alpha,
+                            label=label)
             # Add kde plot
             if kde:
                 x = np.linspace(xmin, xmax, 100)
@@ -293,7 +287,7 @@ def histogram(
     return fig, axes[:, 0]
 
 
-def trace(samples, ref_parameters=None, n_percentiles=None):
+def trace(samples, ref_parameters=None, parameter_names=None, n_percentiles=None):
     """
     Takes one or more markov chains or lists of samples as input and creates
     and returns a plot showing histograms and traces for each chain or list of
@@ -324,6 +318,14 @@ def trace(samples, ref_parameters=None, n_percentiles=None):
     alpha = 0.5
     n_list = len(samples)
     _, n_param = samples[0].shape
+    
+    # Check parameter names
+    if parameter_names is None:
+        parameter_names = ['Parameter' + str(i + 1) for i in range(n_param)]
+    elif len(parameter_names) != n_param:
+        raise ValueError(
+            'Length of `parameter_names` must be same as number of'
+            ' parameters.')
 
     # Check number of parameters
     for samples_j in samples:
@@ -352,7 +354,7 @@ def trace(samples, ref_parameters=None, n_percentiles=None):
         ymin_all, ymax_all = np.inf, -np.inf
         for j_list, samples_j in enumerate(samples):
             # Add histogram subplot
-            axes[i, 0].set_xlabel('Parameter ' + str(i + 1))
+            axes[i, 0].set_xlabel(parameter_names[i])
             axes[i, 0].set_ylabel('Frequency')
             if n_percentiles is None:
                 xmin = np.min(samples_j[:, i])
@@ -588,7 +590,8 @@ def pairwise(samples,
              heatmap=False,
              opacity=None,
              ref_parameters=None,
-             n_percentiles=None):
+             n_percentiles=None,
+             parameter_names=None):
     """
     Takes a markov chain or list of ``samples`` and creates a set of pairwise
     scatterplots for all parameters (p1 versus p2, p1 versus p3, p2 versus p3,
@@ -646,6 +649,14 @@ def pairwise(samples,
         raise ValueError('`samples` must be of shape (n_sample,'
                          + ' n_parameters).')
 
+    # Check parameter names
+    if parameter_names is None:
+        parameter_names = ['Parameter' + str(i + 1) for i in range(n_param)]
+    elif len(parameter_names) != n_param:
+        raise ValueError(
+            'Length of `parameter_names` must be same as number of'
+            ' parameters.')
+        
     # Check number of parameters
     if n_param < 2:
         raise ValueError('Number of parameters must be larger than 2.')
@@ -799,7 +810,7 @@ def pairwise(samples,
                 axes[i, j].set_yticklabels([])
 
         # Set axis labels
-        axes[-1, i].set_xlabel('Parameter %d' % (i + 1))
+        axes[-1, i].set_xlabel(parameter_names[i])
         if i == 0:
             # The first one is not a parameter
             axes[i, 0].set_ylabel('Frequency')

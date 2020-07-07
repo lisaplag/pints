@@ -239,9 +239,6 @@ class AdaptiveCovarianceMC(pints.SingleChainMCMC):
 
         # Increase iteration count
         self._iterations += 1
-        
-        #if self._iterations == 10000:
-        print(self._sigma)
 
         # First point?
         if self._current is None:
@@ -262,9 +259,6 @@ class AdaptiveCovarianceMC(pints.SingleChainMCMC):
         # Calculate log of the ratio of proposed and current log pdf
         # Can be used in adaptation, regardless of acceptance
         log_ratio = fx - self._current_log_pdf
-        
-        #print(self._proposed)
-        #print(fx)
 
         # Accept or reject the point
         accepted = False
@@ -272,7 +266,6 @@ class AdaptiveCovarianceMC(pints.SingleChainMCMC):
             u = np.log(np.random.uniform(0, 1))
             if u < log_ratio:
                 accepted = True
-                #print("accepted")
                 self._acceptance_count += 1
 
                 # Update current point
@@ -284,7 +277,6 @@ class AdaptiveCovarianceMC(pints.SingleChainMCMC):
 
         # Clear proposal
         self._proposed = None
-        print("\n")
               
         # Adapt covariance matrix
         if self._adaptive:
@@ -301,7 +293,10 @@ class AdaptiveCovarianceMC(pints.SingleChainMCMC):
 
             # Adapt
             self._adapt_internal(accepted, log_ratio)
-
+            
+        if self._iterations == 30000:
+            print(self._sigma)
+            
         # Return current sample
         return self._current
 
