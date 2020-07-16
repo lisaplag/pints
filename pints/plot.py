@@ -287,7 +287,7 @@ def histogram(
     return fig, axes[:, 0]
 
 
-def trace(samples, ref_parameters=None, parameter_names=None, n_percentiles=None):
+def trace(samples, ref_parameters=None, parameter_names=None, sample_names=None, n_percentiles=None):
     """
     Takes one or more markov chains or lists of samples as input and creates
     and returns a plot showing histograms and traces for each chain or list of
@@ -365,12 +365,16 @@ def trace(samples, ref_parameters=None, parameter_names=None, n_percentiles=None
                 xmax = np.percentile(samples_j[:, i],
                                      50 + n_percentiles / 2.)
             xbins = np.linspace(xmin, xmax, bins)
+            if sample_names is not None:
+                label=sample_names[j_list]
+            else:
+                label='Samples ' + str(1 + j_list)
             axes[i, 0].hist(samples_j[:, i], bins=xbins, alpha=alpha,
-                            label='Samples ' + str(1 + j_list))
+                            label=label)
 
             # Add trace subplot
             axes[i, 1].set_xlabel('Iteration')
-            axes[i, 1].set_ylabel('Parameter ' + str(i + 1))
+            axes[i, 1].set_ylabel(parameter_names[i])
             axes[i, 1].plot(samples_j[:, i], alpha=alpha)
 
             # Set ylim
@@ -824,7 +828,7 @@ def surface(
         x_grid, y_grid, z_grid,
         cmap="Blues", angle=(25, 300), alpha=1.,
         fontsize=14, labelpad=10,
-        title="", x_label="", y_label="", z_label="log_likelihood"):
+        title="", x_label="", y_label="", z_label="log-likelihood"):
     """
     Creates 3d contour plot given a grid for each axis.
     Arguments:

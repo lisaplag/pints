@@ -52,8 +52,8 @@ class NeuralNetwork(pints.ProblemLogLikelihood):
 
     def __init__(self, problem, X, y, input_scaler=None, output_scaler=None):
         # Perform sanity checks for given data
-        if not isinstance(problem, pints.SingleOutputProblem):
-            raise ValueError("Given problem must extend SingleOutputProblem")
+        if not (isinstance(problem, pints.SingleOutputProblem) or isinstance(problem, pints.MultiOutputProblem)):
+            raise ValueError("Given problem must extend SingleOutputProblem or MultiOutputProblem.")
         super(NeuralNetwork, self).__init__(problem)
 
         # Store counts
@@ -66,7 +66,7 @@ class NeuralNetwork(pints.ProblemLogLikelihood):
             raise ValueError("Input should be 2 dimensional")
         X_r, X_c = X.shape
         if (X_c != self._n_parameters):
-            raise ValueError("Input data should have n_parameters features")
+            raise ValueError("Input data should have", self._np, "features")
 
         # if given target array is 1d convert automatically
         if y.ndim == 1:
@@ -132,92 +132,7 @@ class RescaledMetrics(keras.callbacks.Callback):
         logs["val_rescaled_mae"] = val_mae
         logs["val_rescaled_mse"] = val_mse
         return
-            
-            
-class SingleLayerNN(NeuralNetwork):
-    """
-    Single layer neural network emulator.
-    Extends :class:`NNEmulator`.
-    """
-    def __init__(self, problem, X, y, input_scaler=None, output_scaler=None):
-        super(SingleLayerNN, self).__init__(problem, X, y, input_scaler, output_scaler)
-        self._model = Sequential()
 
-
-    def __call__(self, x):
-        """ Additional **kwargs can be provided to Keras's predict method. """
-        x = np.array(x).reshape((1, self.n_parameters()))
-        if self._input_scaler:
-            x = self._input_scaler.transform(x)
-
-        y = self._model.predict([x])
-        if self._output_scaler:
-            y = self._output_scaler.inverse_transform(y)
-        return y
-
-    def set_parameters(self, neurons=64, hidden_activation='relu', activation='sigmoid', 
-                       learning_rate=0.001, loss='mse', metrics=['mae']):
-        """ Provide parameters to compile the model. """
-        self._model.add(Dense(neurons,
-                                activation=hidden_activation,
-                                input_dim=2,
-                                kernel_initializer='he_uniform'
-                                #kernel_regularizer=tf.keras.regularizers.l2(0.01),)
-        ))
-        self._model.add(Dense(1, activation=activation))  # output layer
-        
-        opt = keras.optimizers.SGD(learning_rate, momentum=0.9)
-        #opt = keras.optimizers.Adam(learning_rate)
-        self._model.compile(
-            loss=loss,
-            optimizer=opt,
-            metrics=metrics
-        )
-
-    def fit(self, epochs=50, batch_size=32, X_val=None, y_val=None, verbose=0):
-        """ Training neural network and return history. """
-        if self._input_scaler and X_val is not None:
-            X_val = self._input_scaler.transform(X_val)
-        if self._output_scaler and y_val is not None:
-            y_val = np.array(y_val).reshape((len(y_val),1))
-            y_val = self._output_scaler.transform(y_val)
-                                            
-        rlrop = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=20)
-        self._history = self._model.fit(self._X,
-                                        self._y,
-                                        epochs=epochs,
-                                        batch_size=batch_size,
-                                        callbacks=[rlrop],
-                                        shuffle=True,
-                                        validation_data=(X_val, y_val),
-                                        verbose=verbose
-        )
-        return self._history
-
-    def summary(self):
-        return self._model.summary()
-
-    def evaluate(self, X_test, y_test, **kwargs):
-        """ Uses Keras's evaluate() method, so can provide additional paramaters. """
-        if self._input_scaler:
-            X_test = self._input_scaler.transform(X_test)
-        if self._output_scaler:
-            y_test = self._output_scaler.inverse_transform(y_test)  
-        return self._model.evaluate(X_test, y_test, **kwargs)
-
-    def get_model(self):
-        """ Return model. """
-        return self._model
-
-    def get_model_history(self):
-        """ Returns the log marginal likelihood of the model. """
-        assert hasattr(self, "_history"), "Must first train NN"
-        return self._history
-
-    def name(self):
-        """ See :meth:`pints.NNEmulator.name()`. """
-        return 'Single-layer neural network'
-    
     
 class MultiLayerNN(NeuralNetwork):
     """
@@ -251,25 +166,27 @@ class MultiLayerNN(NeuralNetwork):
             regularizer=tf.keras.regularizers.l2(0.01)
         else: 
             regularizer=None
+        if hidden_activation == "relu":
+            hidden_activation = tf.keras.layers.LeakyReLU(alpha=0.1) 
         # Input layer    
         self._model.add(Dense(neurons,
-                                activation=tf.keras.layers.LeakyReLU(alpha=0.1),
-                                input_dim=2,
-                                kernel_initializer=initializer,
-                                kernel_regularizer=regularizer
+                        activation=hidden_activation,
+                        input_dim=self._np,
+                        kernel_initializer=initializer,
+                        kernel_regularizer=regularizer
         ))
         # Hidden layers
         for n in range(1, k):    
             self._model.add(Dense(neurons*(2**n),
-                activation=tf.keras.layers.LeakyReLU(alpha=0.1),
-                kernel_initializer=initializer,                  
-                kernel_regularizer=regularizer
+                            activation=hidden_activation,
+                            kernel_initializer=initializer,                  
+                            kernel_regularizer=regularizer
             ))
         for n in range(k-2, -1, -1):    
             self._model.add(Dense(neurons*(2**n),
-                activation=tf.keras.layers.LeakyReLU(alpha=0.1),
-                kernel_initializer=initializer,                  
-                kernel_regularizer=regularizer
+                            activation=hidden_activation,
+                            kernel_initializer=initializer,                  
+                            kernel_regularizer=regularizer
             ))
         # Output layer
         self._model.add(Dense(1, activation=activation))

@@ -104,6 +104,7 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
         self._acceptance = 0
         self._acceptance1 = 0
         self._acceptance2 = 0
+        self._acceptance3 = 0
         self._count1 = 0
         self._count2 = 0
 
@@ -184,19 +185,19 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
                             (self._iterations + 1))
         
         # First stage acceptance rate
-        #self._acceptance1 = ((self._iterations * self._acceptance1 + accepted1) /
-        #                    (self._iterations + 1))
+        self._acceptance1 = ((self._iterations * self._acceptance1 + accepted1) /
+                            (self._iterations + 1))
         
         # Second stage acceptance rate
         #if self._iterations * self._acceptance1 > 0: # to avoid division by 0 error
-        #    self._acceptance2 = ((self._iterations * self._acceptance) /
-        #                        (self._iterations * self._acceptance1))
+        #       self._acceptance3 = ((self._iterations * self._acceptance) /
+        #                           (self._iterations * self._acceptance1))
         
         # Increase iteration count
         self._iterations += 1
         
         # Computing stepwise acceptance rates using counters
-        self._acceptance1 = self._count1 / self._iterations        
+        #self._acceptance1 = self._count1 / self._iterations        
         if self._count1 > 0: # to avoid division by 0 error
             self._acceptance2 = self._count2 / self._count1
 

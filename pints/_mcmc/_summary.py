@@ -10,6 +10,7 @@ from __future__ import absolute_import, division
 from __future__ import print_function, unicode_literals
 import logging
 import numpy as np
+import pandas as pd
 import pints
 from tabulate import tabulate
 
@@ -219,3 +220,13 @@ class MCMCSummary(object):
         Return the run time taken for sampling.
         """
         return self._time
+    
+    def save(self, path, sheet=None):
+        df = pd.DataFrame(list(self._summary_list), 
+                          columns=['param', 'mean', 'std.', '2.5%', '25%', '50%', 
+                                   '75%', '97.5%', 'rhat', 'ess', 'ess per sec.']).set_index('param')  
+        df['time'] = self._time
+        df.to_excel(path, sheet_name=sheet)
+        return df
+        
+        

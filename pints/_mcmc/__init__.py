@@ -295,12 +295,13 @@ class MCMCController(object):
         :class:`HaarioBardenetACMC` is used.
     """
 
-    def __init__(self, log_pdf, chains, x0, sigma0=None, method=None, f=None):
+    def __init__(self, log_pdf, chains, x0, sigma0=None, method=None, f=None, debug=None):
 
         # Store function
         if not isinstance(log_pdf, pints.LogPDF):
             raise ValueError('Given function must extend pints.LogPDF')
         self._log_pdf = log_pdf
+        self._true_log_pdf = f
 
         # Get number of parameters
         self._n_parameters = self._log_pdf.n_parameters()
@@ -341,8 +342,8 @@ class MCMCController(object):
             # Using n individual samplers (Note that it is possible to have
             # _single_chain=True and _n_samplers=1)
             self._n_samplers = self._n_chains
-            if f is not None:
-                self._samplers = [method(f, x, sigma0) for x in x0]
+            if self._true_log_pdf is not None:
+                self._samplers = [method(self._true_log_pdf, x, sigma0) for x in x0]
             else:
                 self._samplers = [method(x, sigma0) for x in x0]
         else:
@@ -373,7 +374,7 @@ class MCMCController(object):
 
         # Writing chains and evaluations to disk
         self._chain_files = None
-        self._evaluation_files = None
+        self._evaluation_files = debug
 
         # Parallelisation
         self._parallel = False
@@ -396,7 +397,10 @@ class MCMCController(object):
         """
         rates = []
         for s in self._samplers:
-            rates.append(s.acceptance_rates())
+            try:
+                rates.append(s.acceptance_rates())
+            except AttributeError:
+                rates.append(s.acceptance_rate())  
         return rates
     
     def chains(self):
@@ -483,6 +487,7 @@ class MCMCController(object):
 
         # Choose method to evaluate
         f = self._log_pdf
+        g = self._true_log_pdf
         if self._needs_sensitivities:
             f = f.evaluateS1
 
@@ -491,8 +496,12 @@ class MCMCController(object):
             # Use at most n_workers workers
             n_workers = min(self._n_workers, self._n_chains)
             evaluator = pints.ParallelEvaluator(f, n_workers=n_workers)
+            if g and self._evaluation_files:
+                true_evaluator = pints.ParallelEvaluator(g, n_workers=n_workers)
         else:
             evaluator = pints.SequentialEvaluator(f)
+            if g and self._evaluation_files:
+                true_evaluator = pints.SequentialEvaluator(g)
 
         # Initial phase
         if self._needs_initial_phase:
@@ -510,6 +519,7 @@ class MCMCController(object):
                 prior = self._log_pdf.log_prior()
 
             # Store last accepted logpdf, per chain
+            current_true_logpdf = np.zeros(self._n_chains)
             current_logpdf = np.zeros(self._n_chains)
             current_prior = np.zeros(self._n_chains)
 
@@ -537,6 +547,8 @@ class MCMCController(object):
                     cl.add_float('logposterior')
                     cl.add_float('loglikelihood')
                     cl.add_float('logprior')
+                    if g and self._evaluation_files:
+                        cl.add_float('truelogposterior')
                 else:
                     cl.add_float('logpdf')
                 eval_loggers.append(cl)
@@ -629,6 +641,10 @@ class MCMCController(object):
 
             # Calculate logpdfs
             fxs = evaluator.evaluate(xs)
+            if g and self._evaluation_files:
+                gxs = true_evaluator.evaluate(xs)
+            else:
+                gxs = None
 
             # Update evaluation count
             n_evaluations += len(fxs)
@@ -640,9 +656,13 @@ class MCMCController(object):
                 # Check and update the individual chains
                 xs_iterator = iter(xs)
                 fxs_iterator = iter(fxs)
+                if gxs:
+                    gxs_iterator = iter(gxs)
                 for i in list(active):  # new list: active may be modified
                     x = next(xs_iterator)
                     fx = next(fxs_iterator)
+                    if gxs:
+                        gx = next(gxs_iterator)
                     y = self._samplers[i].tell(fx)
 
                     if y is not None:
@@ -659,6 +679,8 @@ class MCMCController(object):
                             accepted = np.all(y == x)
                             if accepted:
                                 current_logpdf[i] = fx
+                                if gxs:
+                                    current_true_logpdf[i] = gx
                                 if prior is not None:
                                     current_prior[i] = prior(y)
 
@@ -668,6 +690,8 @@ class MCMCController(object):
                                 e = [e,
                                      current_logpdf[i] - current_prior[i],
                                      current_prior[i]]
+                            if g is not None:
+                                e.append(current_true_logpdf[i])
 
                         # Store evaluations in memory
                         if self._evaluations_in_memory:

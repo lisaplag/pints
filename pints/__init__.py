@@ -248,7 +248,7 @@ from ._emulators import (
     NNEmulator,
 )
 # base classes first
-from ._emulators._ann import SingleLayerNN, MultiLayerNN
+from ._emulators._ann import MultiLayerNN
 from ._emulators._utils import generate_grid, predict_grid
 
 #
