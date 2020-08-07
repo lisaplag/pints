@@ -9,6 +9,7 @@ from __future__ import absolute_import, division
 from __future__ import print_function, unicode_literals
 import pints
 import numpy as np
+import os
 
 
 class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
@@ -62,6 +63,16 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
         Returns the current (measured) acceptance rates in all steps.
         """
         return self._acceptance, self._acceptance1, self._acceptance2
+    
+    def log_pdfs(self):
+        """
+        Returns the vectors of log-posteriors in all steps.
+        """
+        #print(os.getcwd())
+        #with open("pdfs.txt", "w") as output:
+        #    output.write(self._true_pdfs)
+
+        return self._true_pdfs, self._emulated_pdfs, self._accepted
 
     def ask(self):
         """ See :meth:`SingleChainMCMC.ask()`. """
@@ -107,6 +118,10 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
         self._acceptance3 = 0
         self._count1 = 0
         self._count2 = 0
+        
+        self._true_pdfs = [] 
+        self._emulated_pdfs = []  
+        self._accepted = [] 
 
         # Update sampler state
         self._running = True
@@ -141,7 +156,6 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
             # Accept
             self._current = self._proposed
             self._current_log_pdf = fx
-            #self._current_log_pdf = self._f(self._proposed)
 
             # Increase iteration count
             self._iterations += 1
@@ -155,6 +169,10 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
         # Check if the proposed point can be accepted using the emulator
         accepted1 = 0
         accepted2 = 0
+        if self._iterations <= 10000:
+            self._true_pdfs.append(self._f(self._proposed))
+            self._emulated_pdfs.append(fx)  
+            
         if np.isfinite(fx):
             # Step 1 - Initial reject step:
             u1 = np.log(np.random.uniform(0, 1))
@@ -165,17 +183,16 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
                 # Step 2 - Metropolis-Hastings step:
                 u2 = np.log(np.random.uniform(0, 1))
                 alpha2 = min(0, self._current_log_pdf - fx)
-                # Using true evaluation for self._current_log_pdf does not work
-                # This only leads to it being cancelled out by one of the alphas
-                #true_fx = self._f(self._proposed)
                 #print((true_fx + alpha2) - (self._current_log_pdf + alpha1))
                 if ((self._f(self._proposed) + alpha2) - (self._f(self._current) + alpha1)) > u2:
                     accepted2 = 1
-                    self._count2 += 1
+                    self._count2 += 1                  
                     self._current = self._proposed
-                    self._current_log_pdf = fx 
-                    #self._current_log_pdf = true_fx            
-                                            
+                    self._current_log_pdf = fx       
+        
+        if self._iterations <= 10000:
+            self._accepted.append(accepted2)
+        
         # Clear proposal
         self._proposed = None
 
