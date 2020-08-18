@@ -184,7 +184,7 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
                 u2 = np.log(np.random.uniform(0, 1))
                 alpha2 = min(0, self._current_log_pdf - fx)
                 #print((true_fx + alpha2) - (self._current_log_pdf + alpha1))
-                if ((self._f(self._proposed) + alpha1) - (self._f(self._current) + alpha2)) > u2:
+                if ((self._f(self._proposed) + alpha2) - (self._f(self._current) + alpha1)) > u2:
                     accepted2 = 1
                     self._count2 += 1                  
                     self._current = self._proposed
