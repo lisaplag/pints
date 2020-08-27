@@ -1,9 +1,10 @@
 #
 # Sub-module containing MCMC inference routines
+# with modifications made to enable emulation-based
+# MCMC methods. These modifications can be found in
+# the run() methods of class MCMCController.
 #
-# This file is part of PINTS (https://github.com/pints-team/pints/) which is
-# released under the BSD 3-clause license. See accompanying LICENSE.md for
-# copyright notice and full license details.
+# This file is part of a fork of PINTS (https://github.com/lisaplag/pints).
 #
 from __future__ import absolute_import, division
 from __future__ import print_function, unicode_literals

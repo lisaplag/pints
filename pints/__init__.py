@@ -206,7 +206,6 @@ from ._mcmc._differential_evolution import DifferentialEvolutionMCMC
 from ._mcmc._dram_ac import DramACMC
 from ._mcmc._dream import DreamMCMC
 from ._mcmc._emcee_hammer import EmceeHammerMCMC
-from ._mcmc._emulated_ac import EmulatedACMCMC
 from ._mcmc._emulated_metropolis import EmulatedMetropolisMCMC
 from ._mcmc._haario_ac import HaarioACMC
 from ._mcmc._haario_bardenet_ac import HaarioBardenetACMC
@@ -240,13 +239,7 @@ from . import noise
 
 from . import plot
 
-#
-#  Emulators
-#
-from ._emulators import (
-    Emulator,
-    NNEmulator,
-)
+
 # base classes first
 from ._emulators._ann import MultiLayerNN
 from ._emulators._utils import generate_grid, predict_grid

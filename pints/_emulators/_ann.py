@@ -1,9 +1,7 @@
 #
-# Basic emulator artificial neural network (ANN)
+# Basic artificial emulator neural network (ENN)
 #
-# This file is part of PINTS (https://github.com/pints-team/pints/) which is
-# released under the BSD 3-clause license. See accompanying LICENSE.md for
-# copyright notice and full license details.
+# This file is part of a fork of PINTS (https://github.com/lisaplag/pints).
 #
 from __future__ import absolute_import, division
 from __future__ import print_function, unicode_literals
@@ -22,32 +20,26 @@ from keras.utils import HDF5Matrix
 class NeuralNetwork(pints.ProblemLogLikelihood):
     """
     Abstract base class for emulators that are based on neural networks.
-    Extends :class:`Emulator`.
-    Parameters
-    ----------
-    x0
-        An starting point in the parameter space.
-    sigma0
-        An optional (initial) covariance matrix, i.e., a guess of the
-        covariance of the distribution to estimate, around ``x0``.
+    Extends :class:`pints.ProblemLogLikelihood`.
     """
     
     """
-    *Extends:* :class:`LogPDF`
-    Abstract class from which all emulators should inherit.
-    An instance of the Emulator models given log-likelihood
+    *Extends:* :class:`pints.ProblemLogLikelihood`
+    Abstract class from which all likelihoods inherit.
     Arguments:
-    ``log_likelihood``
-        A :class:`LogPDF`, the likelihood distribution being emulated.
+    ``problem``
+        A :class:`pints.SingleOutputProblem` or :class:`pints.MultiOutputProblem`
+        the problem being emulated.
     ``X``
-        N by n_paremeters matrix containing inputs for training data
+        N by n_parameters, a matrix containing the training data.
     ``y``
-        N by 1, target values for each input vector
+        N by 1, the target values for each input vector.
     ``input_scaler``
-        sklearn scalar type, don't pass class just the type.
-        E.g. StandardScaler provides standardization.
+        object of type sklearn.preprocessing applied to input.
+        e.g. StandardScaler or MinMaxScaler.
     ``output_scaler``
-        sklearn scaler class that will be applied to output
+        object of type sklearn.preprocessing applied to output.
+        e.g. StandardScaler or MinMaxScaler.
     """
 
     def __init__(self, problem, X, y, input_scaler=None, output_scaler=None):
@@ -56,17 +48,13 @@ class NeuralNetwork(pints.ProblemLogLikelihood):
             raise ValueError("Given problem must extend SingleOutputProblem or MultiOutputProblem.")
         super(NeuralNetwork, self).__init__(problem)
 
-        # Store counts
-        self._no = problem.n_outputs()
-        self._np = problem.n_parameters()
-        self._nt = problem.n_times()
-
         # check if dimensions are valid
         if X.ndim != 2:
             raise ValueError("Input should be 2 dimensional")
         X_r, X_c = X.shape
         if (X_c != self._n_parameters):
-            raise ValueError("Input data should have", self._np, "features")
+            raise ValueError("Input data should have", 
+                             self.__n_parameters, "features")
 
         # if given target array is 1d convert automatically
         if y.ndim == 1:
@@ -96,7 +84,7 @@ class NeuralNetwork(pints.ProblemLogLikelihood):
             self._y = copy.deepcopy(y)  # use a copy to prevent original data from changing
 
     def n_parameters(self):
-        return self._np
+        return self._n_parameters
     
     
 class RescaledMetrics(keras.callbacks.Callback):
@@ -157,8 +145,7 @@ class MultiLayerNN(NeuralNetwork):
     
 
     def set_parameters(self, layers=6, neurons=64, hidden_activation='relu', activation='sigmoid', 
-                       learning_rate=0.001, 
-                       regularize=True, loss='mse', metrics=['mae']):
+                       learning_rate=0.001, regularize=True, loss='mse', metrics=['mae']):
         """ Provide parameters to compile the model. """
         initializer = tf.keras.initializers.he_uniform(seed=1234)
         k = int(layers/2)
@@ -171,7 +158,7 @@ class MultiLayerNN(NeuralNetwork):
         # Input layer    
         self._model.add(Dense(neurons,
                         activation=hidden_activation,
-                        input_dim=self._np,
+                        input_dim=self._n_parameters,
                         kernel_initializer=initializer,
                         kernel_regularizer=regularizer
         ))
@@ -236,22 +223,9 @@ class MultiLayerNN(NeuralNetwork):
     def summary(self):
         return self._model.summary()
 
-    def evaluate(self, X_test, y_test, **kwargs):
-        """ Uses Keras's evaluate() method, so can provide additional paramaters. """
-        if self._input_scaler:
-            X_test = self._input_scaler.transform(X_test)
-        if self._output_scaler:
-            y_test = self._output_scaler.inverse_transform(y_test)  
-        return self._model.evaluate(X_test, y_test, **kwargs)
-
     def get_model(self):
         """ Return model. """
         return self._model
-
-    def get_model_history(self):
-        """ Returns the log marginal likelihood of the model. """
-        assert hasattr(self, "_history"), "Must first train NN"
-        return self._history
 
     def name(self):
         """ See :meth:`pints.NNEmulator.name()`. """

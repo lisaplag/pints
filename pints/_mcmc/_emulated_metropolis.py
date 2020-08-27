@@ -1,9 +1,7 @@
 #
-# Random-walk Metropolis MCMC
+# Emulated random-walk Metropolis MCMC
 #
-# This file is part of PINTS (https://github.com/pints-team/pints/) which is
-# released under the BSD 3-clause license. See accompanying LICENSE.md for
-# copyright notice and full license details.
+# This file is part of a fork of PINTS (https://github.com/lisaplag/pints).
 #
 from __future__ import absolute_import, division
 from __future__ import print_function, unicode_literals
@@ -14,18 +12,13 @@ import os
 
 class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
     """
-    Metropolis Random Walk MCMC, as described in [1]_.
+    Emulated Metropolis Random Walk MCMC, 
+    a modified version of the algorithm described in [1]_.
 
     Metropolis using multivariate Gaussian distribution as proposal step, also
-    known as Metropolis Random Walk MCMC. In each iteration (t) of the
-    algorithm, the following occurs::
-
-        propose x' ~ N(x_t, Sigma)
-        generate u ~ U(0, 1)
-        calculate r = pi(x') / pi(x_t)
-        if r > u, x_t+1 = x'; otherwise, x_t+1 = x_t
-
-    here Sigma is the covariance matrix of the proposal.
+    known as Metropolis Random Walk MCMC. The original algorithm was modified
+    by combining it with a likelihood emulator in a two-step routine that
+    performs asymptotically exact inference.
 
     Extends :class:`SingleChainMCMC`.
 
@@ -115,7 +108,6 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
         self._acceptance = 0
         self._acceptance1 = 0
         self._acceptance2 = 0
-        self._acceptance3 = 0
         self._count1 = 0
         self._count2 = 0
         
@@ -169,7 +161,7 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
         # Check if the proposed point can be accepted using the emulator
         accepted1 = 0
         accepted2 = 0
-        if self._iterations <= 10000:
+        if self._iterations <= 10000: # for debugging only
             self._true_pdfs.append(self._f(self._proposed))
             self._emulated_pdfs.append(fx)  
             
@@ -183,38 +175,29 @@ class EmulatedMetropolisMCMC(pints.SingleChainMCMC):
                 # Step 2 - Metropolis-Hastings step:
                 u2 = np.log(np.random.uniform(0, 1))
                 alpha2 = min(0, self._current_log_pdf - fx)
-                #print((true_fx + alpha2) - (self._current_log_pdf + alpha1))
                 if ((self._f(self._proposed) + alpha2) - (self._f(self._current) + alpha1)) > u2:
                     accepted2 = 1
                     self._count2 += 1                  
                     self._current = self._proposed
                     self._current_log_pdf = fx       
         
-        if self._iterations <= 10000:
+        if self._iterations <= 10000: # for debugging only
             self._accepted.append(accepted2)
         
         # Clear proposal
         self._proposed = None
-
-        # Update acceptance rates (only used for output!)            
-        # Overall acceptance rate
-        self._acceptance = ((self._iterations * self._acceptance + accepted2) /
-                            (self._iterations + 1))
-        
-        # First stage acceptance rate
-        self._acceptance1 = ((self._iterations * self._acceptance1 + accepted1) /
-                            (self._iterations + 1))
-        
-        # Second stage acceptance rate
-        #if self._iterations * self._acceptance1 > 0: # to avoid division by 0 error
-        #       self._acceptance3 = ((self._iterations * self._acceptance) /
-        #                           (self._iterations * self._acceptance1))
         
         # Increase iteration count
         self._iterations += 1
         
-        # Computing stepwise acceptance rates using counters
-        #self._acceptance1 = self._count1 / self._iterations        
+        # Update acceptance rates (used for measuring performance)            
+        # Overall acceptance rate
+        self._acceptance = self._count2 / self._iterations
+        
+        # First stage acceptance rate
+        self._acceptance1 = self._count1 / self._iterations
+        
+        # Computing stepwise acceptance rates using counters       
         if self._count1 > 0: # to avoid division by 0 error
             self._acceptance2 = self._count2 / self._count1
 
